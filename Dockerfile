@@ -1,4 +1,4 @@
-FROM quay.io/maxandersen/jbang-action
+FROM quay.io/jbangdev/jbang-action
 
 ADD backport.java /backport.java
 ADD backportAction.java /backportAction.java
