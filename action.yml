@@ -1,0 +1,14 @@
+name: 'Backport Action'
+description: 'Backport commits from a merged Pull Request to another branch with a label'
+
+inputs:
+  github-token:
+    description: The GitHub token used to create an authenticated client
+    default: ${{github.token}}
+    required: true
+
+runs:
+  using: 'docker'
+  image: 'Dockerfile'
+  args:
+    - ${{ inputs.github-token }}
