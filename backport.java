@@ -9,6 +9,7 @@
 import org.apache.commons.io.FileUtils;
 import org.eclipse.jgit.api.CherryPickResult;
 import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.Status;
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
@@ -73,7 +74,7 @@ class backport implements Callable<Integer> {
             return 0;
         }
 
-        log.info("Backporting #" + pullRequestNumber + " to " + String.join("", backportBranches));
+        log.info("Backporting #" + pullRequestNumber + " to " + String.join(", ", backportBranches));
 
         Path repoPath = Paths.get(context.getRepository().getName());
         if (Files.exists(repoPath) && Files.isDirectory(repoPath)) {
@@ -120,11 +121,19 @@ class backport implements Callable<Integer> {
             }
 
             // Cherry Pick
+            boolean isChanged = false;
             CherryPickResult cherryPickResult = null;
             for (String commit : commits) {
                 ObjectId objectId = git.getRepository().resolve(commit);
                 log.info("Applying commit " + commit);
                 cherryPickResult = git.cherryPick().include(objectId).setMainlineParentNumber(1).call();
+
+                if (cherryPickResult.getCherryPickedRefs().isEmpty()) {
+                    log.info("Commit " + commit + " already applied");
+                } else {
+                    isChanged = true;
+                }
+
                 if (!cherryPickResult.getStatus().equals(OK)) {
                     log.info("Could not apply commit " + commit + " due to a conflict");
                     break;
@@ -135,6 +144,11 @@ class backport implements Callable<Integer> {
             if (cherryPickResult != null && !cherryPickResult.getStatus().equals(OK)) {
                 context.getPullRequest().comment("Cannot backport to " + branch + "` due to merge conflicts. " +
                                                  "Please backport manually.");
+                continue;
+            }
+
+            if (!isChanged) {
+                log.info("All commits are already present in " + branch);
                 continue;
             }
 
