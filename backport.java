@@ -9,9 +9,11 @@
 import org.apache.commons.io.FileUtils;
 import org.eclipse.jgit.api.CherryPickResult;
 import org.eclipse.jgit.api.Git;
-import org.eclipse.jgit.api.Status;
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.Ref;
+import org.eclipse.jgit.lib.StoredConfig;
+import org.eclipse.jgit.transport.RefSpec;
+import org.eclipse.jgit.transport.RemoteConfig;
 import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 import org.kohsuke.github.GHLabel;
 import org.kohsuke.github.GHPullRequest;
@@ -96,6 +98,22 @@ class backport implements Callable<Integer> {
                 log.info("A backport branch " + head + " already exists in origin");
                 continue;
             }
+
+            // Add PR Ref
+            RefSpec branchRefSpec = new RefSpec(
+                "+refs/pull/" + pullRequestNumber.toString() + "/head:" +
+                "refs/remotes/origin/pr/" + pullRequestNumber.toString());
+            StoredConfig config = git.getRepository().getConfig();
+            RemoteConfig remoteConfig = new RemoteConfig(config, "origin");
+            remoteConfig.addFetchRefSpec(branchRefSpec);
+            remoteConfig.update(config);
+            config.save();
+
+            // Fetch PR
+            git.fetch()
+               .setRemote("origin")
+               .setRefSpecs(branchRefSpec)
+               .call();
 
             // Checkout the branch to backport
             log.info("Checkout branch to backport origin/" + branch);
