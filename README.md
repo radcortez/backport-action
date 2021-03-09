@@ -37,7 +37,13 @@ jobs:
         uses: radcortez/backport-action@main
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          GIT_COMMITTER_NAME: ${{ env.GITHUB_ACTOR }}
+          GIT_COMMITTER_EMAIL: noreply@github.com
 ```
+
+The `GIT_COMMITTER_NAME` and `GIT_COMMITTER_EMAIL` are used for the name and email of the cherry pick committer. The 
+action maintains the original committer author. These options are optional.
 
 ## Standalone
 
