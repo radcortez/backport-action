@@ -38,3 +38,17 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
 ```
+
+## Standalone
+
+It is also possible to use the Backport Action directly from your local environment or with any other CI. Please refer 
+to `backport.java`. This requires [JBang](https://github.com/jbangdev/jbang) to run the script.
+
+The same rules apply. The target Pull Request require backport labels and the script will either create backport Pull 
+Request or report issues. 
+
+### Usage
+
+```bash
+jbang backport.java <token> <repository> <pullRequestNumber>
+```
