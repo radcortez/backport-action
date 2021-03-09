@@ -146,22 +146,47 @@ class backport implements Callable<Integer> {
                 log.info("Applying commit " + commit);
                 cherryPickResult = git.cherryPick().include(objectId).setMainlineParentNumber(1).call();
 
+                if (!cherryPickResult.getStatus().equals(OK)) {
+                    log.info("Could not apply commit " + commit + " due to a conflict");
+                    break;
+                }
+
                 if (cherryPickResult.getCherryPickedRefs().isEmpty()) {
                     log.info("Commit " + commit + " already applied");
                 } else {
                     isChanged = true;
                 }
-
-                if (!cherryPickResult.getStatus().equals(OK)) {
-                    log.info("Could not apply commit " + commit + " due to a conflict");
-                    break;
-                }
             }
 
             // Handle Cherry Pick failure
             if (cherryPickResult != null && !cherryPickResult.getStatus().equals(OK)) {
-                context.getPullRequest().comment("Cannot backport to " + branch + "` due to merge conflicts. " +
-                                                 "Please backport manually.");
+                StringBuilder backportFailureMessage = new StringBuilder()
+                    .append("Cannot backport to `")
+                    .append(branch)
+                    .append("` due to merge conflicts. ")
+                    .append("Please backport manually with the following commands: ")
+                    .append("\n")
+                    .append("git clone ").append(context.getRepository().getHttpTransportUrl())
+                    .append("\n")
+                    .append("git fetch origin pull/").append(pullRequestNumber).append("/head:pr-").append(pullRequestNumber)
+                    .append("\n")
+                    .append("git checkout -b ").append(branch).append(" ").append("origin/").append(branch)
+                    .append("\n")
+                    .append("git checkout -b ").append(head)
+                    .append("\n");
+
+                for (String commit : commits) {
+                    backportFailureMessage
+                        .append("git cherry-pick ").append(commit)
+                        .append("\n");
+                }
+
+                backportFailureMessage
+                    .append("git push --set-upstream origin ").append(head);
+
+                log.info("Add cannot backport comment:\n" + backportFailureMessage.toString());
+
+                context.getPullRequest().comment(backportFailureMessage.toString());
                 continue;
             }
 
