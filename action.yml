@@ -1,4 +1,4 @@
-name: 'Backport Action'
+name: 'Backport Pull Request Action'
 description: 'Backport commits from a merged Pull Request to another branch with a label'
 branding:
   icon: 'git-pull-request'
