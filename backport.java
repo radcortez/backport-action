@@ -160,33 +160,15 @@ class backport implements Callable<Integer> {
 
             // Handle Cherry Pick failure
             if (cherryPickResult != null && !cherryPickResult.getStatus().equals(OK)) {
-                StringBuilder backportFailureMessage = new StringBuilder()
-                    .append("Cannot backport to `")
-                    .append(branch)
-                    .append("` due to merge conflicts. ")
-                    .append("Please backport manually with the following commands: ")
-                    .append("\n")
-                    .append("git clone ").append(context.getRepository().getHttpTransportUrl())
-                    .append("\n")
-                    .append("git fetch origin pull/").append(pullRequestNumber).append("/head:pr-").append(pullRequestNumber)
-                    .append("\n")
-                    .append("git checkout -b ").append(branch).append(" ").append("origin/").append(branch)
-                    .append("\n")
-                    .append("git checkout -b ").append(head)
-                    .append("\n");
+                String backportFailureMessage = "Cannot backport to " + branch + " due to merge conflicts. " +
+                                 "Please backport manually:\n" +
+                                 getManualInstructions(commits, head, branch, context.pullRequest.getTitle());
 
-                for (String commit : commits) {
-                    backportFailureMessage
-                        .append("git cherry-pick ").append(commit)
-                        .append("\n");
-                }
+                context.getPullRequest()
+                       .comment(backportFailureMessage);
 
-                backportFailureMessage
-                    .append("git push --set-upstream origin ").append(head);
+                log.info("Add cannot backport comment:\n" + backportFailureMessage);
 
-                log.info("Add cannot backport comment:\n" + backportFailureMessage.toString());
-
-                context.getPullRequest().comment(backportFailureMessage.toString());
                 continue;
             }
 
@@ -205,9 +187,10 @@ class backport implements Callable<Integer> {
             // Create PR
             GHPullRequest backportPullRequest =
                 context.getRepository()
-                       .createPullRequest("Backport #" + pullRequestNumber + " to " + branch, head, branch,
-                                          "Backported from #" + pullRequestNumber, true, false);
+                       .createPullRequest("[" + branch + "] Backport " + context.pullRequest.getTitle(), head, branch,
+                                          "Backport #" + pullRequestNumber + " to " + branch + ".", true, false);
             log.info("Created Pull Request " + backportPullRequest.getHtmlUrl());
+
             backportPullRequests.add(backportPullRequest);
         }
 
@@ -229,6 +212,45 @@ class backport implements Callable<Integer> {
         }
 
         return 0;
+    }
+
+    private String getManualInstructions(List<String> commits, String head, String branch, String title) {
+        StringBuffer message = new StringBuffer()
+            .append("Run:\n```\n")
+            .append("git clone ").append(context.getRepository().getHttpTransportUrl())
+            .append("\n")
+            .append("git fetch origin pull/").append(pullRequestNumber).append("/head:pr-").append(pullRequestNumber)
+            .append("\n")
+            .append("git checkout -b ").append(branch).append(" ").append("origin/").append(branch)
+            .append("\n")
+            .append("git checkout -b ").append(head)
+            .append("\n")
+            .append("# One or more of the following command will fail, you will need to fix the conflict manually\n");
+
+        commits.forEach(commit -> message.append("git cherry-pick ").append(commit).append("\n"));
+
+        message.append("# Once all commits have been cherry-picked:\n")
+               .append("git push --set-upstream origin ")
+               .append(head)
+               .append("\n")
+               .append("```")
+
+               .append("\n")
+               .append("To fix the conflict, first check which file is impacted using: `git status`\n")
+               .append("For each file with a resolved conflict, execute: `git add $FILE`\n")
+               .append("Then, commit the files using the same commit message as the original commit: `git commit -m \"...\"`\n")
+
+               .append("\n")
+               .append("Once done and pushed, open the pull request.\n\n")
+               .append("* Title: [").append(branch).append("] Backport ").append(title)
+               .append("\n")
+               .append("* Message: ")
+               .append("Backport #").append(pullRequestNumber).append(" to ").append(branch).append(".\n")
+               .append("* ⚡ **Set the target branch to ")
+               .append(branch)
+               .append("** \n")
+               .append("* Set the milestone and the labels if needed\n");
+        return message.toString();
     }
 
     private static class BackportContext {
