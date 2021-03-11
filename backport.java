@@ -90,7 +90,7 @@ class backport implements Callable<Integer> {
         List<GHPullRequest> backportPullRequests = new ArrayList<>();
         for (String branch : backportBranches) {
             // The branch to create with the backport
-            String head = "backport-#" + pullRequestNumber + "-to-" + branch;
+            String head = "backport-" + pullRequestNumber + "-to-" + branch;
 
             // Verify if a branch already exits in remote
             List<Ref> remoteBranches = git.branchList().setListMode(REMOTE).call();
